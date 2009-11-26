@@ -1,0 +1,58 @@
+#! /usr/bin/env ruby
+
+source = ARGV.first
+
+raise "No file specified." if source.nil? || source.empty?
+
+require "maruku"
+
+CONTEXT_COLORS = [
+  "DarkGreen",
+  "Brown",
+  "DarkOrchid",
+  "DarkSlateBlue",
+]
+
+colors = Hash.new { |key, context| key[context] = CONTEXT_COLORS.pop }
+
+colors["@done"] = "gray"
+
+target = "#{source}.html"
+
+input = File.read(source)
+
+# Contexts
+input.gsub!(/(\B)?(@\w+)(\B)?/) { |m| "#{$1}<span style='color: #{colors[$2]}' class='context'>#{$2}</span>#{$3}" }
+
+# Sections
+input.gsub!(/^[^-](.*:)\s*$/) { |m| "\n\n<h1 style='font-size: 1em'>#{$1}</h1>\n" }
+
+# Autolink
+input.gsub!(/((https?:\/\/|www\.)([-\w\.]+)+(:\d+)?(\/([\w\/_\.]*(\?\S+)?)?)?)/, %Q{<a href="\\1">\\1</a>})
+
+doc = Maruku.new(input)
+
+output = doc.to_html_document({:indent => -1})
+
+output = output.sub("</head>", <<-EOS)
+<style type="text/css">
+body {
+  font-family: 'Lucida Grande', sans-serif;
+  font-size: 12px;
+}
+
+h1 {
+  font-size: 1em;
+}
+
+span.context {
+  font-family: monospace;
+}
+</style>
+
+</head>
+EOS
+
+File.open(target, "w") do |file|
+  file.write(output)
+end
